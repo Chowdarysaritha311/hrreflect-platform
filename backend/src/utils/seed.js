@@ -78,20 +78,30 @@ const sampleJobs = [
 const seed = async () => {
   await connectDB();
 
-  // Create default admin
-  const adminEmail = process.env.ADMIN_EMAIL || 'info@hrreflect.com';
-  const existing   = await AdminUser.findOne({ email: adminEmail });
-
-  if (!existing) {
-    await AdminUser.create({
+  // ── Admin accounts ─────────────────────────────────────────
+  const admins = [
+    {
       name:     process.env.ADMIN_NAME     || 'HRReflect Admin',
-      email:    adminEmail,
+      email:    (process.env.ADMIN_EMAIL   || 'info@hrreflect.com').toLowerCase(),
       password: process.env.ADMIN_PASSWORD || 'hrreflect@admin2024',
       role:     'superadmin',
-    });
-    console.log(`✅ Admin created: ${adminEmail}`);
-  } else {
-    console.log(`ℹ️  Admin already exists: ${adminEmail}`);
+    },
+    {
+      name:     'Lekkala Bhaskar',
+      email:    (process.env.ADMIN2_EMAIL    || 'bhaskar@hrreflect.com').toLowerCase(),
+      password: process.env.ADMIN2_PASSWORD  || 'Bhaskar@HRR2024',
+      role:     'admin',
+    },
+  ];
+
+  for (const adminData of admins) {
+    const existing = await AdminUser.findOne({ email: adminData.email });
+    if (!existing) {
+      await AdminUser.create(adminData);
+      console.log(`✅ Admin created: ${adminData.email} (${adminData.role})`);
+    } else {
+      console.log(`ℹ️  Admin already exists: ${adminData.email}`);
+    }
   }
 
   // Create sample jobs

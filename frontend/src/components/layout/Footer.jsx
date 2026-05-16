@@ -56,8 +56,18 @@ export default function Footer() {
 
           {/* Brand */}
           <div className="lg:col-span-2">
-            <Link to="/" className="inline-block mb-5">
-              <img src="/hrr-logo.jpg" alt="HRReflect" className="h-10 w-auto" />
+            <Link to="/" className="inline-block mb-5 group">
+              <div className="bg-white rounded-xl px-4 py-2 inline-flex items-center group-hover:opacity-90 transition-opacity shadow-sm">
+                <img
+                  src="/hrr-logo.jpg"
+                  alt="HRReflect"
+                  className="h-9 w-auto object-contain"
+                  onError={e => {
+                    e.target.style.display = 'none';
+                    e.target.parentElement.innerHTML = '<span style="font-family:Syne,sans-serif;font-weight:800;font-size:18px;color:#F97316">HR<span style="color:#111827">Reflect</span></span>';
+                  }}
+                />
+              </div>
             </Link>
             <p className="text-gray-400 text-sm leading-relaxed mb-5 max-w-sm">
               India's modern HR consultancy delivering top-tier talent for forward-thinking companies. Trusted by 30+ businesses across Bangalore and growing.
@@ -101,7 +111,7 @@ export default function Footer() {
                 {/* Admin login — subtle, only visible to team */}
                 {group === 'For Candidates' && (
                   <li className="pt-3 border-t border-white/5 mt-3">
-                    <Link to="/admin" className="text-gray-600 hover:text-gray-400 text-xs transition-colors flex items-center gap-1">
+                    <Link to="/admin/login" className="text-gray-600 hover:text-gray-400 text-xs transition-colors flex items-center gap-1">
                       🔐 Admin Login
                     </Link>
                   </li>

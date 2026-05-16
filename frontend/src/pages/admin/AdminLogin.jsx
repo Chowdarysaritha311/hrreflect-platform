@@ -49,7 +49,17 @@ export default function AdminLogin() {
           {/* Logo */}
           <div className="text-center mb-8">
             <div className="flex justify-center mb-4">
-              <img src="/hrr-logo.jpg" alt="HRReflect" className="h-14 w-auto object-contain" />
+              <div className="bg-gray-50 border border-gray-200 rounded-2xl px-6 py-3 inline-flex items-center justify-center">
+                <img
+                  src="/hrr-logo.jpg"
+                  alt="HRReflect"
+                  className="h-12 w-auto object-contain"
+                  onError={e => {
+                    e.target.style.display = 'none';
+                    e.target.parentElement.innerHTML = '<span style="font-family:Syne,sans-serif;font-weight:800;font-size:22px;color:#F97316">HR<span style="color:#111827">Reflect</span></span>';
+                  }}
+                />
+              </div>
             </div>
             <h1 className="font-display font-bold text-2xl text-gray-900">Admin Login</h1>
             <p className="text-gray-500 text-sm mt-1">HRReflect Management Panel</p>

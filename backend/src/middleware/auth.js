@@ -14,7 +14,7 @@ export const protect = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const admin   = await AdminUser.findById(decoded.id).select('+password');
+    const admin   = await AdminUser.findById(decoded.id);
 
     if (!admin || !admin.isActive) {
       return res.status(401).json({ success: false, message: 'Admin account not found or deactivated.' });

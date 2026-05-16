@@ -25,10 +25,18 @@ const app = express();
 // ── Security & Middleware ────────────────────────────────────────────────────
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(cors({
-  origin: [
-    process.env.FRONTEND_URL || 'http://localhost:5173',
-    'http://localhost:4173',
-  ],
+  origin: (origin, callback) => {
+    const allowed = [
+      process.env.FRONTEND_URL,
+      'http://localhost:5173',
+      'http://localhost:4173',
+      'https://hrreflect.com',
+      'https://www.hrreflect.com',
+    ].filter(Boolean);
+    // Allow requests with no origin (mobile apps, Postman, server-side)
+    if (!origin || allowed.includes(origin)) return callback(null, true);
+    callback(new Error(`CORS: ${origin} not allowed`));
+  },
   credentials: true,
 }));
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));

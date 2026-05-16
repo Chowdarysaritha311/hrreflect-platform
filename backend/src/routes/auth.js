@@ -15,7 +15,7 @@ router.post(
   '/login',
   authLimiter,
   [
-    body('email').isEmail().normalizeEmail().withMessage('Valid email required.'),
+    body('email').isEmail().withMessage('Valid email required.').customSanitizer(v => v.trim().toLowerCase()),
     body('password').notEmpty().withMessage('Password required.'),
   ],
   async (req, res, next) => {

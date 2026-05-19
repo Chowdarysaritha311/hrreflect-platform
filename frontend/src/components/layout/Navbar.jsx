@@ -46,13 +46,15 @@ export default function Navbar() {
       >
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
           <Link to="/" className="flex items-center group">
-            <img
-              src="/hrr-logo.jpg"
-              alt="HRReflect"
-              className={`h-10 w-auto object-contain group-hover:scale-105 transition-all duration-200 ${
-                isTransparent ? 'brightness-0 invert' : ''
-              }`}
-            />
+            <div className={`rounded-xl transition-all duration-300 group-hover:scale-105 ${
+              isTransparent ? 'bg-white/90 px-2 py-1 shadow-md' : ''
+            }`}>
+              <img
+                src="/hrr-logo.jpg"
+                alt="HRReflect"
+                className="h-9 w-auto object-contain"
+              />
+            </div>
           </Link>
 
           <div className="hidden md:flex items-center gap-0.5">

@@ -1,18 +1,13 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { MapPin, Briefcase, Clock, IndianRupee, Search, ArrowUpRight, Building2, CheckCircle, X, Upload, Loader2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { MapPin, Briefcase, Clock, IndianRupee, Search, ArrowUpRight, Building2, CheckCircle, X, Upload, Loader2, ChevronDown, ChevronUp, FileText } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { jobsApi, applicationsApi } from '../api/index.js';
 
 const FALLBACK_JOBS = [
-  { _id: 1, title: 'Senior Software Engineer', company: 'Leading FinTech Company', location: 'Bangalore', employmentType: 'Full Time', experience: '4–7 years', salary: '18–28 LPA', skills: ['React', 'Node.js', 'AWS', 'MongoDB'], industry: 'IT', urgent: true },
-  { _id: 2, title: 'HR Business Partner', company: 'MNC Corporation', location: 'Bangalore', employmentType: 'Full Time', experience: '5–8 years', salary: '12–18 LPA', skills: ['HR Strategy', 'Talent Management', 'HRBP'], industry: 'Corporate', urgent: false },
-  { _id: 3, title: 'Sales Manager — B2B', company: 'Logistics Startup', location: 'Bangalore', employmentType: 'Full Time', experience: '3–6 years', salary: '10–16 LPA', skills: ['B2B Sales', 'CRM', 'Negotiation'], industry: 'Logistics', urgent: true },
-  { _id: 4, title: 'Data Scientist', company: 'Healthcare Analytics Firm', location: 'Bangalore', employmentType: 'Full Time', experience: '3–5 years', salary: '15–22 LPA', skills: ['Python', 'Machine Learning', 'SQL'], industry: 'Healthcare', urgent: false },
-  { _id: 5, title: 'DevOps Engineer', company: 'SaaS Product Company', location: 'Bangalore', employmentType: 'Full Time', experience: '3–6 years', salary: '16–24 LPA', skills: ['Docker', 'Kubernetes', 'AWS'], industry: 'IT', urgent: false },
-  { _id: 6, title: 'Operations Manager', company: 'Manufacturing Company', location: 'Bangalore', employmentType: 'Full Time', experience: '7–12 years', salary: '20–30 LPA', skills: ['Operations', 'Lean', 'Supply Chain'], industry: 'Manufacturing', urgent: false },
-  { _id: 7, title: 'Customer Support Lead', company: 'BPO Company', location: 'Bangalore', employmentType: 'Full Time', experience: '2–4 years', salary: '5–8 LPA', skills: ['Team Management', 'CRM', 'Communication'], industry: 'BPO', urgent: true },
-  { _id: 8, title: 'Finance Controller', company: 'Multinational Bank', location: 'Bangalore', employmentType: 'Full Time', experience: '8–12 years', salary: '25–40 LPA', skills: ['Financial Reporting', 'IFRS', 'ERP'], industry: 'Finance', urgent: false },
+  { _id: 1, title: 'Senior Software Engineer', company: 'Leading FinTech Company', location: 'Bangalore', employmentType: 'Full Time', experience: '4–7 years', salary: '18–28 LPA', skills: ['React', 'Node.js', 'AWS', 'MongoDB'], industry: 'IT', urgent: true, description: 'We are looking for a Senior Software Engineer to join our growing FinTech team. You will design and build scalable backend services, work on frontend features using React, and collaborate with product teams to deliver high-quality solutions.\n\nKey Responsibilities:\n• Design and develop scalable web applications\n• Collaborate with cross-functional teams\n• Code reviews and mentoring junior developers\n• Optimize application performance\n\nRequirements:\n• 4–7 years of hands-on experience\n• Strong proficiency in React and Node.js\n• Experience with AWS and MongoDB\n• Good understanding of REST APIs' },
+  { _id: 2, title: 'HR Business Partner', company: 'MNC Corporation', location: 'Bangalore', employmentType: 'Full Time', experience: '5–8 years', salary: '12–18 LPA', skills: ['HR Strategy', 'Talent Management', 'HRBP'], industry: 'Corporate', urgent: false, description: 'Seeking an experienced HR Business Partner to align HR strategies with business objectives and support leadership teams.\n\nKey Responsibilities:\n• Partner with business leaders on workforce planning\n• Drive talent acquisition and retention initiatives\n• Manage employee relations and conflict resolution\n• Lead HR analytics and reporting\n\nRequirements:\n• 5–8 years in HR with HRBP experience\n• Strong knowledge of labor laws\n• Excellent communication and stakeholder management skills' },
+  { _id: 3, title: 'Sales Manager — B2B', company: 'Logistics Startup', location: 'Bangalore', employmentType: 'Full Time', experience: '3–6 years', salary: '10–16 LPA', skills: ['B2B Sales', 'CRM', 'Negotiation'], industry: 'Logistics', urgent: true, description: 'Drive B2B sales growth for a fast-growing logistics startup. You will manage key accounts, develop new business, and lead a small sales team.\n\nKey Responsibilities:\n• Identify and close new B2B opportunities\n• Manage and grow existing client accounts\n• Lead and coach the sales team\n• Meet and exceed monthly revenue targets\n\nRequirements:\n• 3–6 years in B2B sales\n• Experience in logistics or supply chain preferred\n• Strong negotiation and CRM skills' },
 ];
 
 const industryColors = {
@@ -30,10 +25,12 @@ export default function Vacancies() {
   const [search, setSearch] = useState('');
   const [industryFilter, setIndustryFilter] = useState('All');
   const [applyJob, setApplyJob] = useState(null);
+  const [detailJob, setDetailJob] = useState(null);
   const [applied, setApplied] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [appForm, setAppForm] = useState(emptyForm);
   const [resumeName, setResumeName] = useState('');
+  const [expandedId, setExpandedId] = useState(null);
 
   useEffect(() => {
     jobsApi.getPublic()
@@ -49,11 +46,13 @@ export default function Vacancies() {
     return matchSearch && matchIndustry;
   });
 
-  const handleApply = (job) => { setApplyJob(job); setApplied(false); setAppForm(emptyForm); setResumeName(''); };
+  const handleApply = (job) => { setApplyJob(job); setDetailJob(null); setApplied(false); setAppForm(emptyForm); setResumeName(''); };
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) { setAppForm(f => ({ ...f, resume: file })); setResumeName(file.name); }
   };
+
+  const toggleExpand = (id) => setExpandedId(prev => prev === id ? null : id);
 
   const handleAppSubmit = async (e) => {
     e.preventDefault();
@@ -73,7 +72,6 @@ export default function Vacancies() {
       if (appForm.resume) fd.append('resume', appForm.resume);
       await applicationsApi.submit(fd);
     } catch {
-      // Fallback: localStorage
       const entry = {
         id: Date.now(), name: appForm.name, email: appForm.email, phone: appForm.phone,
         experience: appForm.experience, skills: appForm.skills || 'Not specified',
@@ -92,6 +90,7 @@ export default function Vacancies() {
 
   return (
     <main className="pt-20">
+      {/* Hero */}
       <section className="relative bg-gray-950 py-24 overflow-hidden">
         <div className="absolute inset-0 bg-[linear-gradient(rgba(249,115,22,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(249,115,22,0.04)_1px,transparent_1px)] bg-[size:60px_60px]" />
         <div className="absolute top-0 right-1/3 w-72 h-72 bg-brand-red opacity-15 blur-3xl rounded-full" />
@@ -104,11 +103,12 @@ export default function Vacancies() {
             Current Job<br /><span className="gradient-text">Vacancies</span>
           </motion.h1>
           <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="text-gray-400 text-xl leading-relaxed">
-            Explore our latest openings across top companies in Bangalore. Apply directly and our recruiter will get in touch within 24 hours.
+            Explore our latest openings. Apply directly and our recruiter will get in touch within 24 hours.
           </motion.p>
         </div>
       </section>
 
+      {/* Filters */}
       <section className="sticky top-16 z-30 bg-white border-b border-gray-100 shadow-sm py-4">
         <div className="max-w-7xl mx-auto px-6 flex flex-wrap gap-3 items-center">
           <div className="flex items-center gap-2 flex-1 min-w-[200px] bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5">
@@ -125,6 +125,7 @@ export default function Vacancies() {
         </div>
       </section>
 
+      {/* Job Cards */}
       <section className="py-12 bg-gray-50">
         <div className="max-w-7xl mx-auto px-6">
           {loadingJobs ? (
@@ -133,37 +134,80 @@ export default function Vacancies() {
             <div className="text-center py-20"><p className="text-gray-400 text-lg">No openings match your search.</p></div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {filtered.map((job, i) => (
-                <motion.div key={job._id} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: (i % 3) * 0.07 }}
-                  className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 flex flex-col">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center"><Briefcase size={18} className="text-brand-red" /></div>
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${industryColors[job.industry] || 'bg-gray-100 text-gray-600'}`}>{job.industry}</span>
+              {filtered.map((job, i) => {
+                const isExpanded = expandedId === job._id;
+                return (
+                  <motion.div key={job._id} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: (i % 3) * 0.07 }}
+                    className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col overflow-hidden">
+
+                    {/* Card Top */}
+                    <div className="p-6 flex flex-col flex-1">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center"><Briefcase size={18} className="text-brand-red" /></div>
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${industryColors[job.industry] || 'bg-gray-100 text-gray-600'}`}>{job.industry}</span>
+                        </div>
+                        {job.urgent && <span className="px-2.5 py-1 bg-red-50 text-brand-red text-xs font-bold rounded-full border border-red-100">🔥 Urgent</span>}
+                      </div>
+
+                      <h3 className="font-display font-bold text-gray-900 text-lg mb-1">{job.title}</h3>
+                      <div className="flex items-center gap-1.5 text-gray-500 text-sm mb-4"><Building2 size={13} /><span>{job.company}</span></div>
+
+                      <div className="grid grid-cols-2 gap-2 mb-4">
+                        <div className="flex items-center gap-1.5 text-gray-500 text-xs"><MapPin size={12} className="text-brand-red" />{job.location}</div>
+                        <div className="flex items-center gap-1.5 text-gray-500 text-xs"><Clock size={12} className="text-brand-red" />{job.experience}</div>
+                        <div className="flex items-center gap-1.5 text-gray-500 text-xs"><IndianRupee size={12} className="text-brand-red" />{job.salary || 'Competitive'}</div>
+                        <div className="flex items-center gap-1.5 text-gray-500 text-xs"><Briefcase size={12} className="text-brand-red" />{job.employmentType || job.type || 'Full Time'}</div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-1.5 mb-4">
+                        {(job.skills || []).map(skill => (<span key={skill} className="px-2.5 py-1 bg-gray-50 border border-gray-100 text-gray-600 text-xs rounded-lg">{skill}</span>))}
+                      </div>
+
+                      {/* Expandable Description */}
+                      <AnimatePresence>
+                        {isExpanded && (
+                          <motion.div
+                            key="desc"
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.3 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="pt-3 pb-4 border-t border-gray-100 mt-1">
+                              <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 mb-2">
+                                <FileText size={13} className="text-brand-red" /> Job Description
+                              </div>
+                              {job.description ? (
+                                <p className="text-gray-600 text-xs leading-relaxed whitespace-pre-line">{job.description}</p>
+                              ) : (
+                                <p className="text-gray-400 text-xs italic">No detailed description added yet. Contact us for more information.</p>
+                              )}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
-                    {job.urgent && <span className="px-2.5 py-1 bg-red-50 text-brand-red text-xs font-bold rounded-full border border-red-100">🔥 Urgent</span>}
-                  </div>
-                  <h3 className="font-display font-bold text-gray-900 text-lg mb-1">{job.title}</h3>
-                  <div className="flex items-center gap-1.5 text-gray-500 text-sm mb-4"><Building2 size={13} /><span>{job.company}</span></div>
-                  <div className="grid grid-cols-2 gap-2 mb-4">
-                    <div className="flex items-center gap-1.5 text-gray-500 text-xs"><MapPin size={12} className="text-brand-red" />{job.location}</div>
-                    <div className="flex items-center gap-1.5 text-gray-500 text-xs"><Clock size={12} className="text-brand-red" />{job.experience}</div>
-                    <div className="flex items-center gap-1.5 text-gray-500 text-xs"><IndianRupee size={12} className="text-brand-red" />{job.salary || 'Competitive'}</div>
-                    <div className="flex items-center gap-1.5 text-gray-500 text-xs"><Briefcase size={12} className="text-brand-red" />{job.employmentType || job.type || 'Full Time'}</div>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5 mb-5">
-                    {(job.skills || []).map(skill => (<span key={skill} className="px-2.5 py-1 bg-gray-50 border border-gray-100 text-gray-600 text-xs rounded-lg">{skill}</span>))}
-                  </div>
-                  <div className="mt-auto flex items-center justify-between">
-                    <span className="text-gray-400 text-xs">{job.posted || 'Recently posted'}</span>
-                    <button onClick={() => handleApply(job)} className="flex items-center gap-1.5 px-4 py-2 bg-brand-red text-white text-sm font-semibold rounded-xl hover:bg-brand-darkred transition-colors">
-                      Apply Now <ArrowUpRight size={14} />
-                    </button>
-                  </div>
-                </motion.div>
-              ))}
+
+                    {/* Card Footer */}
+                    <div className="px-6 pb-5 flex items-center justify-between gap-2 border-t border-gray-50 pt-4">
+                      <button
+                        onClick={() => toggleExpand(job._id)}
+                        className="flex items-center gap-1 text-xs font-semibold text-gray-500 hover:text-brand-red transition-colors"
+                      >
+                        {isExpanded ? <><ChevronUp size={14} /> Hide Details</> : <><ChevronDown size={14} /> View Details</>}
+                      </button>
+                      <button onClick={() => handleApply(job)} className="flex items-center gap-1.5 px-4 py-2 bg-brand-red text-white text-sm font-semibold rounded-xl hover:bg-brand-darkred transition-colors">
+                        Apply Now <ArrowUpRight size={14} />
+                      </button>
+                    </div>
+                  </motion.div>
+                );
+              })}
             </div>
           )}
+
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
             className="mt-14 bg-gray-950 rounded-2xl p-10 text-center relative overflow-hidden">
             <div className="absolute inset-0 bg-[linear-gradient(rgba(249,115,22,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(249,115,22,0.04)_1px,transparent_1px)] bg-[size:40px_40px]" />
@@ -178,6 +222,7 @@ export default function Vacancies() {
         </div>
       </section>
 
+      {/* Apply Modal */}
       {applyJob && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}

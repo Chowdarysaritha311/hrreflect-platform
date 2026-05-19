@@ -247,10 +247,15 @@ export default function AdminJobs() {
                 </div>
                 {/* Description */}
                 <div>
-                  <label className="block text-xs font-semibold text-gray-400 mb-1.5">Job Description</label>
+                  <label className="block text-xs font-semibold text-gray-400 mb-1.5">
+                    Job Description
+                    <span className="ml-2 text-gray-500 font-normal">(Visible to candidates on the website)</span>
+                  </label>
                   <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })}
-                    placeholder="Briefly describe the role..." rows={3}
-                    className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 text-white rounded-xl outline-none focus:border-brand-red text-sm resize-none" />
+                    placeholder={"Write the full job description here...\n\nExample:\nKey Responsibilities:\n• Manage employee lifecycle\n• Handle HR operations\n\nRequirements:\n• 3+ years experience\n• Strong communication skills"}
+                    rows={12}
+                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 text-white rounded-xl outline-none focus:border-brand-red text-sm resize-y leading-relaxed" />
+                  <p className="text-xs text-gray-500 mt-1">💡 Tip: Use bullet points (•) and sections like Key Responsibilities, Requirements etc. for better readability.</p>
                 </div>
                 {/* Toggles */}
                 <div className="flex items-center gap-6">

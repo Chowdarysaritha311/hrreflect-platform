@@ -175,15 +175,24 @@ export default function Vacancies() {
                             transition={{ duration: 0.3 }}
                             className="overflow-hidden"
                           >
-                            <div className="pt-3 pb-4 border-t border-gray-100 mt-1">
-                              <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 mb-2">
-                                <FileText size={13} className="text-brand-red" /> Job Description
+                            <div className="mt-3 rounded-xl bg-orange-50 border border-orange-100 p-4">
+                              <div className="flex items-center gap-2 mb-3">
+                                <FileText size={15} className="text-brand-red flex-shrink-0" />
+                                <span className="text-sm font-bold text-gray-800">Job Description</span>
                               </div>
                               {job.description ? (
-                                <p className="text-gray-600 text-xs leading-relaxed whitespace-pre-line">{job.description}</p>
+                                <div className="text-gray-700 text-sm leading-relaxed whitespace-pre-line">
+                                  {job.description}
+                                </div>
                               ) : (
-                                <p className="text-gray-400 text-xs italic">No detailed description added yet. Contact us for more information.</p>
+                                <div className="text-center py-4">
+                                  <p className="text-gray-400 text-sm italic">No detailed description added yet.</p>
+                                  <p className="text-gray-400 text-xs mt-1">Contact us at <span className="text-brand-red font-medium">info@hrreflect.com</span> for more information.</p>
+                                </div>
                               )}
+                              <div className="mt-4 pt-3 border-t border-orange-200 flex items-center justify-between">
+                                <span className="text-xs text-gray-500">📍 {job.location} &nbsp;·&nbsp; 💼 {job.employmentType || 'Full Time'} &nbsp;·&nbsp; ⏱ {job.experience}</span>
+                              </div>
                             </div>
                           </motion.div>
                         )}

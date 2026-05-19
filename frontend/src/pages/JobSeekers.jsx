@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Send, Upload, User, Mail, Phone, Briefcase, MapPin, CheckCircle, Star, Zap, Shield } from 'lucide-react';
+import { Send, Upload, User, Mail, Phone, Briefcase, MapPin, CheckCircle, Star, Zap, Shield, Loader2 } from 'lucide-react';
+import { applicationsApi } from '../api/index.js';
 
 const benefits = [
   { icon: Zap, title: 'Fast Placement', desc: 'Get placed in top companies within 7–14 days of registration.' },
@@ -21,38 +22,53 @@ export default function JobSeekers() {
     currentRole: '', desiredRole: '', skills: '', notice: '', message: ''
   });
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [fileName, setFileName] = useState('');
+  const [resumeFile, setResumeFile] = useState(null);
 
   const handleChange = e => setForm({ ...form, [e.target.name]: e.target.value });
   const handleFile = e => {
-    if (e.target.files[0]) setFileName(e.target.files[0].name);
+    const file = e.target.files[0];
+    if (file) { setFileName(file.name); setResumeFile(file); }
   };
-  const handleSubmit = e => {
+  const handleSubmit = async e => {
     e.preventDefault();
-    // Save to localStorage so admin can view under "Applications" tab
-    const entry = {
-      id: Date.now(),
-      type: 'jobseeker',
-      name: form.name,
-      email: form.email,
-      phone: form.phone,
-      city: form.city,
-      experience: form.experience,
-      currentRole: form.currentRole,
-      desiredRole: form.desiredRole,
-      skills: form.skills,
-      notice: form.notice,
-      message: form.message,
-      resume: fileName || 'Not uploaded',
-      date: new Date().toLocaleDateString('en-IN'),
-      status: 'New',
-    };
-    const existing = JSON.parse(localStorage.getItem('hrreflect_applications') || '[]');
-    localStorage.setItem('hrreflect_applications', JSON.stringify([entry, ...existing]));
-    setSubmitted(true);
-    setTimeout(() => setSubmitted(false), 5000);
-    setForm({ name: '', email: '', phone: '', city: '', experience: '', currentRole: '', desiredRole: '', skills: '', notice: '', message: '' });
-    setFileName('');
+    setSubmitting(true);
+    try {
+      const fd = new FormData();
+      fd.append('name',         form.name);
+      fd.append('email',        form.email);
+      fd.append('phone',        form.phone);
+      fd.append('city',         form.city);
+      fd.append('experience',   form.experience);
+      fd.append('skills',       form.skills || '');
+      fd.append('currentRole',  form.currentRole || '');
+      fd.append('desiredRole',  form.desiredRole || '');
+      fd.append('noticePeriod', form.notice || '');
+      fd.append('message',      form.message || '');
+      if (resumeFile) fd.append('resume', resumeFile);
+      await applicationsApi.submitJobSeeker(fd);
+    } catch {
+      // Fallback to localStorage if backend unavailable
+      const entry = {
+        id: Date.now(), type: 'jobseeker',
+        name: form.name, email: form.email, phone: form.phone,
+        city: form.city, experience: form.experience,
+        currentRole: form.currentRole, desiredRole: form.desiredRole,
+        skills: form.skills, notice: form.notice, message: form.message,
+        resume: fileName || 'Not uploaded',
+        date: new Date().toLocaleDateString('en-IN'), status: 'Applied',
+      };
+      const existing = JSON.parse(localStorage.getItem('hrreflect_applications') || '[]');
+      localStorage.setItem('hrreflect_applications', JSON.stringify([entry, ...existing]));
+    } finally {
+      setSubmitting(false);
+      setSubmitted(true);
+      setTimeout(() => setSubmitted(false), 5000);
+      setForm({ name: '', email: '', phone: '', city: '', experience: '', currentRole: '', desiredRole: '', skills: '', notice: '', message: '' });
+      setFileName('');
+      setResumeFile(null);
+    }
   };
 
   return (
@@ -268,9 +284,9 @@ export default function JobSeekers() {
                     </label>
                   </div>
 
-                  <button type="submit"
-                    className="w-full flex items-center justify-center gap-2 px-8 py-4 bg-brand-red text-white font-bold rounded-xl hover:bg-brand-darkred transition-all duration-200 shadow-lg shadow-orange-200 hover:-translate-y-0.5 hover:shadow-xl text-lg">
-                    Submit My Profile <Send size={20} />
+                  <button type="submit" disabled={submitting}
+                    className="w-full flex items-center justify-center gap-2 px-8 py-4 bg-brand-red text-white font-bold rounded-xl hover:bg-brand-darkred transition-all duration-200 shadow-lg shadow-orange-200 hover:-translate-y-0.5 hover:shadow-xl text-lg disabled:opacity-60">
+                    {submitting ? <><Loader2 size={20} className="animate-spin" /> Submitting…</> : <>Submit My Profile <Send size={20} /></>}
                   </button>
                   <p className="text-gray-400 text-xs text-center">🔒 Your details are 100% confidential and never shared without your consent.</p>
                 </form>

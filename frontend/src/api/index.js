@@ -76,6 +76,7 @@ export const jobsApi = {
 // ── Applications ──────────────────────────────────────────────────────────
 export const applicationsApi = {
   submit: (formData) => requestForm('/applications', formData),
+  submitJobSeeker: (formData) => requestForm('/applications/jobseeker', formData),
   getAll: (params = {}) => {
     const qs = new URLSearchParams(params).toString();
     return request(`/applications${qs ? '?' + qs : ''}`);

@@ -21,6 +21,7 @@ export default function AdminApplications() {
   const [loading,    setLoading]    = useState(true);
   const [viewApp,    setViewApp]    = useState(null);
   const [statusFilter, setStatusFilter] = useState('All');
+  const [typeFilter, setTypeFilter] = useState('all'); // 'all' | 'application' | 'jobseeker'
   const [search,     setSearch]     = useState('');
   const [page,       setPage]       = useState(1);
   const [pagination, setPagination] = useState({ total: 0, pages: 1 });
@@ -32,15 +33,16 @@ export default function AdminApplications() {
       const params = { page, limit: LIMIT };
       if (statusFilter !== 'All') params.status = statusFilter;
       if (search.trim()) params.search = search.trim();
+      if (typeFilter !== 'all') params.type = typeFilter;
       const d = await applicationsApi.getAll(params);
       setApps(d.data);
       setPagination(d.pagination);
     } catch (err) { toast(err.message, 'error'); }
     finally { setLoading(false); }
-  }, [page, statusFilter, search]);
+  }, [page, statusFilter, search, typeFilter]);
 
   useEffect(() => { load(); }, [load]);
-  useEffect(() => { setPage(1); }, [statusFilter, search]);
+  useEffect(() => { setPage(1); }, [statusFilter, search, typeFilter]);
 
   const updateStatus = async (id, status) => {
     try {
@@ -69,6 +71,24 @@ export default function AdminApplications() {
         <div className="mb-6">
           <h1 className="font-display font-bold text-2xl text-white mb-1">Applications</h1>
           <p className="text-gray-500 text-sm">{pagination.total} total applications</p>
+        </div>
+
+        {/* Type Tabs */}
+        <div className="flex gap-2 mb-4">
+          {[
+            { key: 'all',         label: 'All Submissions' },
+            { key: 'application', label: '📋 Job Applications' },
+            { key: 'jobseeker',   label: '👤 Job Seeker Profiles' },
+          ].map(t => (
+            <button key={t.key} onClick={() => setTypeFilter(t.key)}
+              className={`px-5 py-2.5 text-sm font-semibold rounded-xl border-2 transition-all ${
+                typeFilter === t.key
+                  ? 'bg-brand-red border-brand-red text-white'
+                  : 'bg-gray-900 border-gray-700 text-gray-400 hover:border-brand-red hover:text-white'
+              }`}>
+              {t.label}
+            </button>
+          ))}
         </div>
 
         {/* Filters */}
@@ -129,9 +149,14 @@ export default function AdminApplications() {
                             </div>
                           </div>
                         </td>
-                        <td className="px-4 py-3.5 text-gray-300 text-sm max-w-[140px]">
+                        <td className="px-4 py-3.5 text-gray-300 text-sm max-w-[160px]">
                           <div className="truncate">{app.jobTitle || 'General'}</div>
-                          <div className="text-gray-600 text-xs truncate">{app.company || ''}</div>
+                          <div className="mt-0.5">
+                            {app.type === 'jobseeker'
+                              ? <span className="text-xs px-1.5 py-0.5 bg-purple-900/40 text-purple-400 rounded-md">Job Seeker</span>
+                              : <span className="text-gray-600 text-xs truncate">{app.company || ''}</span>
+                            }
+                          </div>
                         </td>
                         <td className="px-4 py-3.5">
                           <div className="text-gray-300 text-sm font-medium">{app.phone}</div>
@@ -208,8 +233,25 @@ export default function AdminApplications() {
                 <button onClick={() => setViewApp(null)} className="text-gray-500 hover:text-white"><X size={22} /></button>
               </div>
 
+              {/* Type badge */}
+              <div className="mb-4">
+                <span className={`px-3 py-1 text-xs font-bold rounded-full ${viewApp.type === 'jobseeker' ? 'bg-purple-900/50 text-purple-300 border border-purple-700' : 'bg-blue-900/50 text-blue-300 border border-blue-700'}`}>
+                  {viewApp.type === 'jobseeker' ? '👤 Job Seeker Profile' : '📋 Job Application'}
+                </span>
+              </div>
               <div className="space-y-2 mb-5">
-                {[
+                {(viewApp.type === 'jobseeker' ? [
+                  ['Full Name',     viewApp.name],
+                  ['Email',         viewApp.email],
+                  ['Phone',         viewApp.phone],
+                  ['Current City',  viewApp.location],
+                  ['Experience',    viewApp.experience],
+                  ['Current Role',  viewApp.currentRole],
+                  ['Desired Role',  viewApp.desiredRole || viewApp.jobTitle],
+                  ['Notice Period', viewApp.noticePeriod],
+                  ['Key Skills',    viewApp.skills],
+                  ['Submitted On',  viewApp.createdAt ? new Date(viewApp.createdAt).toLocaleDateString('en-IN') : ''],
+                ] : [
                   ['Full Name',   viewApp.name],
                   ['Email',       viewApp.email],
                   ['Phone',       viewApp.phone],
@@ -219,16 +261,16 @@ export default function AdminApplications() {
                   ['Experience',  viewApp.experience],
                   ['Key Skills',  viewApp.skills],
                   ['Applied On',  viewApp.createdAt ? new Date(viewApp.createdAt).toLocaleDateString('en-IN') : ''],
-                ].filter(([, v]) => v).map(([l, v]) => (
+                ]).filter(([, v]) => v).map(([l, v]) => (
                   <div key={l} className="flex gap-3 px-4 py-2.5 bg-gray-800 rounded-xl">
-                    <span className="text-gray-500 text-xs font-medium w-24 flex-shrink-0 pt-0.5">{l}</span>
+                    <span className="text-gray-500 text-xs font-medium w-28 flex-shrink-0 pt-0.5">{l}</span>
                     <span className="text-gray-200 text-sm font-medium">{v}</span>
                   </div>
                 ))}
-                {viewApp.coverLetter && (
+                {(viewApp.coverLetter || viewApp.message) && (
                   <div className="px-4 py-3 bg-gray-800 rounded-xl">
-                    <span className="text-gray-500 text-xs font-medium block mb-1.5">Cover Letter</span>
-                    <p className="text-gray-300 text-sm leading-relaxed">{viewApp.coverLetter}</p>
+                    <span className="text-gray-500 text-xs font-medium block mb-1.5">{viewApp.type === 'jobseeker' ? 'Additional Message' : 'Cover Letter'}</span>
+                    <p className="text-gray-300 text-sm leading-relaxed">{viewApp.coverLetter || viewApp.message}</p>
                   </div>
                 )}
               </div>

@@ -17,17 +17,24 @@ const applicationSchema = new mongoose.Schema({
     mimetype:     String,
     size:         Number,
   },
-  // Job reference
+  // Job reference (only for job applicants)
   jobId:    { type: mongoose.Schema.Types.ObjectId, ref: 'Job' },
   jobTitle: { type: String },
   company:  { type: String },
+  // Type: 'application' = applied to a specific job, 'jobseeker' = general profile registration
+  type: { type: String, enum: ['application', 'jobseeker'], default: 'application' },
+  // Extra jobseeker fields
+  currentRole:  { type: String },
+  desiredRole:  { type: String },
+  noticePeriod: { type: String },
+  message:      { type: String },
   // Application management
   status: {
     type: String,
     enum: ['Applied','Shortlisted','Interview Scheduled','Rejected','Hired'],
     default: 'Applied',
   },
-  notes: { type: String },          // Internal recruiter notes
+  notes: { type: String },
   // Future AI fields — architecture ready
   aiScore:          { type: Number },
   aiSkillsExtracted:[{ type: String }],

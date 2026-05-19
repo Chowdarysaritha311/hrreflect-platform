@@ -12,39 +12,29 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
 const router = express.Router();
 
-// POST /api/applications  — public (candidate applies)
+// POST /api/applications  — public (candidate applies to a job)
 router.post('/', (req, res, next) => {
   uploadResume(req, res, async (err) => {
     if (err) return next(err);
-
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ success: false, message: errors.array()[0].msg });
-    }
-
     try {
       const { name, email, phone, location, experience, skills, coverLetter, jobId, jobTitle, company } = req.body;
-
       if (!name || !email || !phone || !experience) {
         return res.status(400).json({ success: false, message: 'Name, email, phone and experience are required.' });
       }
-
-      // Resolve job title if jobId provided
       let resolvedTitle   = jobTitle;
       let resolvedCompany = company;
       if (jobId) {
         const job = await Job.findById(jobId);
         if (job) { resolvedTitle = job.title; resolvedCompany = job.company; }
       }
-
       const applicationData = {
         name, email, phone, location, experience, skills, coverLetter,
-        jobId:    jobId    || undefined,
+        jobId: jobId || undefined,
         jobTitle: resolvedTitle,
         company:  resolvedCompany,
-        status:   'Applied',
+        type:   'application',
+        status: 'Applied',
       };
-
       if (req.file) {
         applicationData.resumeFile = {
           originalName: req.file.originalname,
@@ -54,13 +44,9 @@ router.post('/', (req, res, next) => {
           size:         req.file.size,
         };
       }
-
       const application = await Application.create(applicationData);
-
-      // Send emails (non-blocking)
       sendCandidateConfirmation({ name, email, jobTitle: resolvedTitle || 'the position' });
       sendAdminNotification({ application, jobTitle: resolvedTitle || 'General Application' });
-
       res.status(201).json({
         success: true,
         message: 'Application submitted successfully. We will contact you within 24 hours.',
@@ -70,28 +56,71 @@ router.post('/', (req, res, next) => {
   });
 });
 
+// POST /api/applications/jobseeker  — public (candidate registers profile)
+router.post('/jobseeker', (req, res, next) => {
+  uploadResume(req, res, async (err) => {
+    if (err) return next(err);
+    try {
+      const { name, email, phone, city, experience, skills, currentRole, desiredRole, noticePeriod, message } = req.body;
+      if (!name || !email || !phone || !experience) {
+        return res.status(400).json({ success: false, message: 'Name, email, phone and experience are required.' });
+      }
+      const applicationData = {
+        name, email, phone,
+        location:     city,
+        experience,
+        skills,
+        currentRole:  currentRole  || '',
+        desiredRole:  desiredRole  || '',
+        noticePeriod: noticePeriod || '',
+        message:      message      || '',
+        jobTitle:     desiredRole  || 'Open to Opportunities',
+        type:         'jobseeker',
+        status:       'Applied',
+      };
+      if (req.file) {
+        applicationData.resumeFile = {
+          originalName: req.file.originalname,
+          filename:     req.file.filename,
+          path:         req.file.path,
+          mimetype:     req.file.mimetype,
+          size:         req.file.size,
+        };
+      }
+      const application = await Application.create(applicationData);
+      sendCandidateConfirmation({ name, email, jobTitle: desiredRole || 'matching opportunities' });
+      sendAdminNotification({ application, jobTitle: `Job Seeker: ${desiredRole || name}` });
+      res.status(201).json({
+        success: true,
+        message: 'Profile submitted! Our recruiter will contact you within 24–48 hours.',
+        data: { id: application._id },
+      });
+    } catch (err) { next(err); }
+  });
+});
+
 // GET /api/applications  — admin only
 router.get('/', protect, async (req, res, next) => {
   try {
-    const { status, search, page = 1, limit = 20 } = req.query;
+    const { status, search, page = 1, limit = 20, type } = req.query;
     const filter = {};
+    if (type && type !== 'all') filter.type = type;
     if (status && status !== 'All') filter.status = status;
     if (search) {
       filter.$or = [
-        { name:     { $regex: search, $options: 'i' } },
-        { email:    { $regex: search, $options: 'i' } },
-        { jobTitle: { $regex: search, $options: 'i' } },
-        { skills:   { $regex: search, $options: 'i' } },
+        { name:        { $regex: search, $options: 'i' } },
+        { email:       { $regex: search, $options: 'i' } },
+        { jobTitle:    { $regex: search, $options: 'i' } },
+        { skills:      { $regex: search, $options: 'i' } },
+        { desiredRole: { $regex: search, $options: 'i' } },
       ];
     }
-
     const skip  = (parseInt(page) - 1) * parseInt(limit);
     const total = await Application.countDocuments(filter);
     const apps  = await Application.find(filter)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
-
     res.json({
       success: true,
       data: apps,

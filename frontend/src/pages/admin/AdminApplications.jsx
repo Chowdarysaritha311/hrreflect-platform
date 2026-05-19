@@ -62,6 +62,35 @@ export default function AdminApplications() {
     } catch (err) { toast(err.message, 'error'); }
   };
 
+  // Download resume — fetch with auth header, create blob URL
+  const handleDownload = async (app) => {
+    try {
+      toast('Downloading resume…');
+      const token = localStorage.getItem('hrr_admin_token');
+      const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const res = await fetch(`${BASE_URL}/applications/${app._id}/resume`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast(err.message || 'Resume not available.', 'error');
+        return;
+      }
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = app.resumeFile?.originalName || `${app.name}_resume.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast('Resume downloaded!');
+    } catch {
+      toast('Failed to download resume.', 'error');
+    }
+  };
+
   return (
     <AdminLayout>
       <ToastContainer toasts={toasts} removeToast={removeToast} />
@@ -182,10 +211,10 @@ export default function AdminApplications() {
                               <Eye size={14} />
                             </button>
                             {app.resumeFile?.filename && (
-                              <a href={applicationsApi.downloadResume(app._id)} download title="Download Resume"
+                              <button onClick={() => handleDownload(app)} title="Download Resume"
                                 className="p-1.5 bg-green-900/40 text-green-400 hover:bg-green-900/60 rounded-lg transition-colors">
                                 <Download size={14} />
-                              </a>
+                              </button>
                             )}
                             <button onClick={() => remove(app._id)} title="Delete"
                               className="p-1.5 bg-red-900/40 text-red-400 hover:bg-red-900/60 rounded-lg transition-colors">
@@ -294,10 +323,20 @@ export default function AdminApplications() {
 
               {/* Resume download */}
               {viewApp.resumeFile?.filename && (
-                <a href={applicationsApi.downloadResume(viewApp._id)} download
-                  className="w-full flex items-center justify-center gap-2 py-3 bg-green-900/40 text-green-400 hover:bg-green-900/60 font-semibold rounded-xl transition-colors text-sm">
-                  <Download size={16} /> Download Resume
-                </a>
+                <div className="space-y-2">
+                  <button onClick={() => handleDownload(viewApp)}
+                    className="w-full flex items-center justify-center gap-2 py-3 bg-green-900/40 text-green-400 hover:bg-green-900/60 font-semibold rounded-xl transition-colors text-sm">
+                    <Download size={16} /> Download Resume ({viewApp.resumeFile.originalName || 'resume'})
+                  </button>
+                  <p className="text-center text-xs text-gray-600">
+                    File size: {viewApp.resumeFile.size ? `${(viewApp.resumeFile.size / 1024).toFixed(0)} KB` : 'Unknown'}
+                  </p>
+                </div>
+              )}
+              {!viewApp.resumeFile?.filename && (
+                <div className="w-full flex items-center justify-center gap-2 py-3 bg-gray-800 text-gray-600 font-semibold rounded-xl text-sm">
+                  No resume uploaded
+                </div>
               )}
             </motion.div>
           </div>

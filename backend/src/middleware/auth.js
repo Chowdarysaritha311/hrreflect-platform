@@ -5,8 +5,14 @@ export const protect = async (req, res, next) => {
   try {
     let token;
 
+    // 1. Check Authorization header (standard API calls)
     if (req.headers.authorization?.startsWith('Bearer ')) {
       token = req.headers.authorization.split(' ')[1];
+    }
+
+    // 2. Check query param (used for file download links opened in new tab)
+    if (!token && req.query.token) {
+      token = req.query.token;
     }
 
     if (!token) {

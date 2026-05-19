@@ -164,7 +164,19 @@ router.get('/:id/resume', protect, async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Resume not found.' });
     }
     const filePath = path.join(__dirname, '../../uploads', app.resumeFile.filename);
-    res.download(filePath, app.resumeFile.originalName);
+    const fs = await import('fs');
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ success: false, message: 'Resume file not found on server.' });
+    }
+    // Set proper content-type so browser downloads as PDF/DOC, not JSON
+    const mime = app.resumeFile.mimetype || 'application/octet-stream';
+    const originalName = app.resumeFile.originalName || app.resumeFile.filename;
+    res.setHeader('Content-Type', mime);
+    res.setHeader('Content-Disposition', `attachment; filename="${originalName}"`);
+    res.setHeader('Cache-Control', 'no-cache');
+    const fileStream = fs.createReadStream(filePath);
+    fileStream.on('error', (err) => next(err));
+    fileStream.pipe(res);
   } catch (err) { next(err); }
 });
 

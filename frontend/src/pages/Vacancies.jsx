@@ -201,12 +201,16 @@ export default function Vacancies() {
 
                     {/* Card Footer */}
                     <div className="px-6 pb-5 flex items-center justify-between gap-2 border-t border-gray-50 pt-4">
-                      <button
-                        onClick={() => toggleExpand(job._id)}
-                        className="flex items-center gap-1 text-xs font-semibold text-gray-500 hover:text-brand-red transition-colors"
-                      >
-                        {isExpanded ? <><ChevronUp size={14} /> Hide Details</> : <><ChevronDown size={14} /> View Details</>}
-                      </button>
+                      {job.description ? (
+                        <button
+                          onClick={() => toggleExpand(job._id)}
+                          className="flex items-center gap-1 text-xs font-semibold text-gray-500 hover:text-brand-red transition-colors"
+                        >
+                          {isExpanded ? <><ChevronUp size={14} /> Hide Details</> : <><ChevronDown size={14} /> View Details</>}
+                        </button>
+                      ) : (
+                        <span className="text-xs text-gray-400 italic">Contact us for details</span>
+                      )}
                       <button onClick={() => handleApply(job)} className="flex items-center gap-1.5 px-4 py-2 bg-brand-red text-white text-sm font-semibold rounded-xl hover:bg-brand-darkred transition-colors">
                         Apply Now <ArrowUpRight size={14} />
                       </button>

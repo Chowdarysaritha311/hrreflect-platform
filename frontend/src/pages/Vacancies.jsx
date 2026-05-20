@@ -31,6 +31,8 @@ export default function Vacancies() {
   const [appForm, setAppForm] = useState(emptyForm);
   const [resumeName, setResumeName] = useState('');
   const [expandedId, setExpandedId] = useState(null);
+  const [readMoreId, setReadMoreId] = useState(null); // track "read more" inside JD box
+  const JD_PREVIEW_LENGTH = 300; // characters shown before "Read More" 
 
   useEffect(() => {
     jobsApi.getPublic()
@@ -52,7 +54,10 @@ export default function Vacancies() {
     if (file) { setAppForm(f => ({ ...f, resume: file })); setResumeName(file.name); }
   };
 
-  const toggleExpand = (id) => setExpandedId(prev => prev === id ? null : id);
+  const toggleExpand = (id) => {
+    setExpandedId(prev => prev === id ? null : id);
+    setReadMoreId(null); // reset read more when toggling
+  };
 
   const handleAppSubmit = async (e) => {
     e.preventDefault();
@@ -133,7 +138,7 @@ export default function Vacancies() {
           ) : filtered.length === 0 ? (
             <div className="text-center py-20"><p className="text-gray-400 text-lg">No openings match your search.</p></div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 items-start">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 items-start align-top">
               {filtered.map((job, i) => {
                 const isExpanded = expandedId === job._id;
                 return (
@@ -175,23 +180,50 @@ export default function Vacancies() {
                             transition={{ duration: 0.3 }}
                             className="overflow-hidden"
                           >
-                            <div className="mt-3 rounded-xl bg-orange-50 border border-orange-100 p-4">
-                              <div className="flex items-center gap-2 mb-3">
-                                <FileText size={15} className="text-brand-red flex-shrink-0" />
+                            <div className="mt-3 rounded-xl bg-orange-50 border border-orange-100 overflow-hidden">
+                              {/* JD Header */}
+                              <div className="flex items-center gap-2 px-4 py-3 border-b border-orange-100 bg-orange-100/50">
+                                <FileText size={14} className="text-brand-red flex-shrink-0" />
                                 <span className="text-sm font-bold text-gray-800">Job Description</span>
                               </div>
                               {job.description ? (
-                                <div className="text-gray-700 text-sm leading-relaxed whitespace-pre-line">
-                                  {job.description}
+                                <div className="px-4 py-3">
+                                  {/* Scrollable content with max height */}
+                                  <div className={`text-gray-700 text-sm leading-relaxed whitespace-pre-line transition-all duration-300 ${
+                                    readMoreId === job._id ? 'max-h-64 overflow-y-auto pr-1' : 'line-clamp-6'
+                                  }`}
+                                    style={readMoreId === job._id ? { maxHeight: '16rem' } : {}}
+                                  >
+                                    {readMoreId === job._id
+                                      ? job.description
+                                      : job.description.length > JD_PREVIEW_LENGTH
+                                        ? job.description.slice(0, JD_PREVIEW_LENGTH) + '...'
+                                        : job.description
+                                    }
+                                  </div>
+                                  {/* Read More / Less toggle */}
+                                  {job.description.length > JD_PREVIEW_LENGTH && (
+                                    <button
+                                      onClick={() => setReadMoreId(prev => prev === job._id ? null : job._id)}
+                                      className="mt-2 text-xs font-semibold text-brand-red hover:underline flex items-center gap-1"
+                                    >
+                                      {readMoreId === job._id ? '↑ Show Less' : '↓ Read Full Description'}
+                                    </button>
+                                  )}
                                 </div>
                               ) : (
-                                <div className="text-center py-4">
-                                  <p className="text-gray-400 text-sm italic">No detailed description added yet.</p>
-                                  <p className="text-gray-400 text-xs mt-1">Contact us at <span className="text-brand-red font-medium">info@hrreflect.com</span> for more information.</p>
+                                <div className="px-4 py-4 text-center">
+                                  <p className="text-gray-400 text-sm italic">No description added yet.</p>
+                                  <p className="text-gray-400 text-xs mt-1">Email <span className="text-brand-red font-medium">info@hrreflect.com</span></p>
                                 </div>
                               )}
-                              <div className="mt-4 pt-3 border-t border-orange-200 flex items-center justify-between">
-                                <span className="text-xs text-gray-500">📍 {job.location} &nbsp;·&nbsp; 💼 {job.employmentType || 'Full Time'} &nbsp;·&nbsp; ⏱ {job.experience}</span>
+                              {/* Footer bar */}
+                              <div className="px-4 py-2.5 bg-orange-100/40 border-t border-orange-100 flex items-center gap-3 flex-wrap">
+                                <span className="text-xs text-gray-500">📍 {job.location}</span>
+                                <span className="text-xs text-gray-400">·</span>
+                                <span className="text-xs text-gray-500">💼 {job.employmentType || 'Full Time'}</span>
+                                <span className="text-xs text-gray-400">·</span>
+                                <span className="text-xs text-gray-500">⏱ {job.experience}</span>
                               </div>
                             </div>
                           </motion.div>

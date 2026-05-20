@@ -198,7 +198,7 @@ export default function AdminJobs() {
                     />
                     <datalist id="location-suggestions">
                       {['Bangalore','Karnal','Mumbai','Delhi','Hyderabad','Chennai','Pune','Kolkata',
-                        'Ahmedabad','Jaipur','Lucknow','Chandigarh','Noida','Gurgaon','Indore',
+                        'Ahmedabad','Jaipur','Lucknow','Chandigarh','Noida','Gurugram','Indore',
                         'Bhopal','Nagpur','Coimbatore','Kochi','Vizag','Puducherry','Salem',
                         'Trichy','Madurai','Mysore','Surat','Vadodara','Patna','Remote','Hybrid','Pan India'
                       ].map(l => <option key={l} value={l} />)}

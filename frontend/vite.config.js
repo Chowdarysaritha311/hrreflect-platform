@@ -11,11 +11,10 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
-      '/uploads': {
-        target: 'http://localhost:5000',
-        changeOrigin: true,
-        secure: false,
-      },
     },
+  },
+  build: {
+    // Warn only above 1MB (suppress 500KB warning)
+    chunkSizeWarningLimit: 1000,
   },
 });

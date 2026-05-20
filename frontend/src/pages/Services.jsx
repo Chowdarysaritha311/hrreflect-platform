@@ -56,7 +56,7 @@ const services = [
     title: 'Manpower Support',
     tagline: 'Large-scale workforce deployment',
     desc: 'Whether you need 10 or 1000 workers, our manpower division handles everything — sourcing, screening, documentation, and ongoing workforce management for manufacturing, logistics, and operations.',
-    features: ['Bulk Hiring (10 to 1000+)', 'Pan-India Deployment', 'Background Verification', 'Documentation & Contracts', 'Ongoing Workforce Mgmt', 'Attrition Replacement'],
+    features: ['Bulk Hiring (10 to 500+ positions)', 'Pan-India Deployment', 'Background Verification', 'Documentation & Contracts', 'Ongoing Workforce Mgmt', 'Attrition Replacement'],
     color: 'bg-teal-500',
     bg: 'from-teal-50 to-green-50',
   },

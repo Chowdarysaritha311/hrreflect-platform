@@ -1,52 +1,58 @@
 import express from 'express';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { body, validationResult } from 'express-validator';
 import Application from '../models/Application.js';
 import Job from '../models/Job.js';
 import { protect } from '../middleware/auth.js';
 import { uploadResume } from '../middleware/upload.js';
 import { sendCandidateConfirmation, sendAdminNotification } from '../utils/email.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname  = path.dirname(__filename);
 const router = express.Router();
 
-// POST /api/applications  — public (candidate applies to a job)
+// Helper to build resumeFile from req.file (memoryStorage)
+const buildResumeFile = (file) => {
+  if (!file) return null;
+  return {
+    originalName: file.originalname,
+    mimetype:     file.mimetype,
+    size:         file.size,
+    data:         file.buffer,   // Buffer stored in MongoDB
+  };
+};
+
+// ── POST /api/applications  — candidate applies to a job ──────────────────
 router.post('/', (req, res, next) => {
   uploadResume(req, res, async (err) => {
     if (err) return next(err);
     try {
-      const { name, email, phone, location, experience, skills, coverLetter, jobId, jobTitle, company } = req.body;
+      const { name, email, phone, location, experience, skills,
+              coverLetter, jobId, jobTitle, company } = req.body;
+
       if (!name || !email || !phone || !experience) {
-        return res.status(400).json({ success: false, message: 'Name, email, phone and experience are required.' });
+        return res.status(400).json({
+          success: false,
+          message: 'Name, email, phone and experience are required.',
+        });
       }
+
       let resolvedTitle   = jobTitle;
       let resolvedCompany = company;
       if (jobId) {
-        const job = await Job.findById(jobId);
+        const job = await Job.findById(jobId).catch(() => null);
         if (job) { resolvedTitle = job.title; resolvedCompany = job.company; }
       }
-      const applicationData = {
+
+      const application = await Application.create({
         name, email, phone, location, experience, skills, coverLetter,
-        jobId: jobId || undefined,
+        jobId:    jobId || undefined,
         jobTitle: resolvedTitle,
         company:  resolvedCompany,
-        type:   'application',
-        status: 'Applied',
-      };
-      if (req.file) {
-        applicationData.resumeFile = {
-          originalName: req.file.originalname,
-          filename:     req.file.filename,
-          path:         req.file.path,
-          mimetype:     req.file.mimetype,
-          size:         req.file.size,
-        };
-      }
-      const application = await Application.create(applicationData);
+        type:     'application',
+        status:   'Applied',
+        resumeFile: buildResumeFile(req.file),
+      });
+
       sendCandidateConfirmation({ name, email, jobTitle: resolvedTitle || 'the position' });
       sendAdminNotification({ application, jobTitle: resolvedTitle || 'General Application' });
+
       res.status(201).json({
         success: true,
         message: 'Application submitted successfully. We will contact you within 24 hours.',
@@ -56,16 +62,22 @@ router.post('/', (req, res, next) => {
   });
 });
 
-// POST /api/applications/jobseeker  — public (candidate registers profile)
+// ── POST /api/applications/jobseeker  — job seeker profile ───────────────
 router.post('/jobseeker', (req, res, next) => {
   uploadResume(req, res, async (err) => {
     if (err) return next(err);
     try {
-      const { name, email, phone, city, experience, skills, currentRole, desiredRole, noticePeriod, message } = req.body;
+      const { name, email, phone, city, experience, skills,
+              currentRole, desiredRole, noticePeriod, message } = req.body;
+
       if (!name || !email || !phone || !experience) {
-        return res.status(400).json({ success: false, message: 'Name, email, phone and experience are required.' });
+        return res.status(400).json({
+          success: false,
+          message: 'Name, email, phone and experience are required.',
+        });
       }
-      const applicationData = {
+
+      const application = await Application.create({
         name, email, phone,
         location:     city,
         experience,
@@ -77,19 +89,12 @@ router.post('/jobseeker', (req, res, next) => {
         jobTitle:     desiredRole  || 'Open to Opportunities',
         type:         'jobseeker',
         status:       'Applied',
-      };
-      if (req.file) {
-        applicationData.resumeFile = {
-          originalName: req.file.originalname,
-          filename:     req.file.filename,
-          path:         req.file.path,
-          mimetype:     req.file.mimetype,
-          size:         req.file.size,
-        };
-      }
-      const application = await Application.create(applicationData);
+        resumeFile:   buildResumeFile(req.file),
+      });
+
       sendCandidateConfirmation({ name, email, jobTitle: desiredRole || 'matching opportunities' });
       sendAdminNotification({ application, jobTitle: `Job Seeker: ${desiredRole || name}` });
+
       res.status(201).json({
         success: true,
         message: 'Profile submitted! Our recruiter will contact you within 24–48 hours.',
@@ -99,13 +104,13 @@ router.post('/jobseeker', (req, res, next) => {
   });
 });
 
-// GET /api/applications  — admin only
+// ── GET /api/applications  — admin list ──────────────────────────────────
 router.get('/', protect, async (req, res, next) => {
   try {
     const { status, search, page = 1, limit = 20, type } = req.query;
     const filter = {};
-    if (type && type !== 'all') filter.type = type;
-    if (status && status !== 'All') filter.status = status;
+    if (type   && type   !== 'all') filter.type   = type;
+    if (status && status !== 'All') filter.status  = status;
     if (search) {
       filter.$or = [
         { name:        { $regex: search, $options: 'i' } },
@@ -117,32 +122,64 @@ router.get('/', protect, async (req, res, next) => {
     }
     const skip  = (parseInt(page) - 1) * parseInt(limit);
     const total = await Application.countDocuments(filter);
-    const apps  = await Application.find(filter)
+
+    // Exclude binary data field from list (for performance)
+    const apps = await Application.find(filter)
+      .select('-resumeFile.data')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
+
     res.json({
       success: true,
       data: apps,
-      pagination: { total, page: parseInt(page), limit: parseInt(limit), pages: Math.ceil(total / parseInt(limit)) },
+      pagination: {
+        total,
+        page:  parseInt(page),
+        limit: parseInt(limit),
+        pages: Math.ceil(total / parseInt(limit)),
+      },
     });
   } catch (err) { next(err); }
 });
 
-// GET /api/applications/:id  — admin only
+// ── GET /api/applications/:id  — single application ──────────────────────
 router.get('/:id', protect, async (req, res, next) => {
   try {
-    const app = await Application.findById(req.params.id);
+    const app = await Application.findById(req.params.id).select('-resumeFile.data');
     if (!app) return res.status(404).json({ success: false, message: 'Application not found.' });
     res.json({ success: true, data: app });
   } catch (err) { next(err); }
 });
 
-// PATCH /api/applications/:id/status  — admin only
+// ── GET /api/applications/:id/resume  — download resume ──────────────────
+router.get('/:id/resume', protect, async (req, res, next) => {
+  try {
+    // Fetch WITH the data field for download
+    const app = await Application.findById(req.params.id).select('+resumeFile.data');
+    if (!app) {
+      return res.status(404).json({ success: false, message: 'Application not found.' });
+    }
+    if (!app.resumeFile?.data || app.resumeFile.data.length === 0) {
+      return res.status(404).json({ success: false, message: 'No resume uploaded for this application.' });
+    }
+
+    const mime         = app.resumeFile.mimetype || 'application/octet-stream';
+    const originalName = app.resumeFile.originalName || 'resume.pdf';
+
+    res.setHeader('Content-Type', mime);
+    res.setHeader('Content-Disposition', `attachment; filename="${originalName}"`);
+    res.setHeader('Content-Length', app.resumeFile.data.length);
+    res.setHeader('Cache-Control', 'no-cache');
+    res.end(app.resumeFile.data); // Send Buffer directly
+  } catch (err) { next(err); }
+});
+
+// ── PATCH /api/applications/:id/status  — update status ──────────────────
 router.patch('/:id/status', protect, async (req, res, next) => {
   try {
     const { status, notes } = req.body;
-    const allowed = ['Applied', 'Shortlisted', 'Interview Scheduled', 'Rejected', 'Hired'];
+    const allowed = ['Applied','Shortlisted','Interview Scheduled','Rejected','Hired'];
     if (!allowed.includes(status)) {
       return res.status(400).json({ success: false, message: 'Invalid status.' });
     }
@@ -150,37 +187,13 @@ router.patch('/:id/status', protect, async (req, res, next) => {
       req.params.id,
       { status, ...(notes !== undefined && { notes }) },
       { new: true }
-    );
+    ).select('-resumeFile.data');
     if (!app) return res.status(404).json({ success: false, message: 'Application not found.' });
     res.json({ success: true, data: app });
   } catch (err) { next(err); }
 });
 
-// GET /api/applications/:id/resume  — admin download
-router.get('/:id/resume', protect, async (req, res, next) => {
-  try {
-    const app = await Application.findById(req.params.id);
-    if (!app || !app.resumeFile?.filename) {
-      return res.status(404).json({ success: false, message: 'Resume not found.' });
-    }
-    const filePath = path.join(__dirname, '../../uploads', app.resumeFile.filename);
-    const fs = await import('fs');
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ success: false, message: 'Resume file not found on server.' });
-    }
-    // Set proper content-type so browser downloads as PDF/DOC, not JSON
-    const mime = app.resumeFile.mimetype || 'application/octet-stream';
-    const originalName = app.resumeFile.originalName || app.resumeFile.filename;
-    res.setHeader('Content-Type', mime);
-    res.setHeader('Content-Disposition', `attachment; filename="${originalName}"`);
-    res.setHeader('Cache-Control', 'no-cache');
-    const fileStream = fs.createReadStream(filePath);
-    fileStream.on('error', (err) => next(err));
-    fileStream.pipe(res);
-  } catch (err) { next(err); }
-});
-
-// DELETE /api/applications/:id  — admin only
+// ── DELETE /api/applications/:id ─────────────────────────────────────────
 router.delete('/:id', protect, async (req, res, next) => {
   try {
     const app = await Application.findByIdAndDelete(req.params.id);

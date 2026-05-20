@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Eye, Download, X, Trash2, Loader2, ChevronLeft, ChevronRight as ChevRight } from 'lucide-react';
+import { Search, Eye, Download, X, Trash2, Loader2, ChevronLeft, ChevronRight as ChevRight, FileText } from 'lucide-react';
 import AdminLayout from '../../components/admin/AdminLayout.jsx';
 import { applicationsApi } from '../../api/index.js';
 import { useToast } from '../../hooks/useToast.js';
@@ -8,23 +8,24 @@ import ToastContainer from '../../components/ui/Toast.jsx';
 
 const STATUSES = ['All', 'Applied', 'Shortlisted', 'Interview Scheduled', 'Rejected', 'Hired'];
 const STATUS_COLORS = {
-  Applied:              'bg-blue-900/40 text-blue-400 border-blue-800/40',
-  Shortlisted:          'bg-green-900/40 text-green-400 border-green-800/40',
-  'Interview Scheduled':'bg-purple-900/40 text-purple-400 border-purple-800/40',
-  Rejected:             'bg-red-900/40 text-red-400 border-red-800/40',
-  Hired:                'bg-emerald-900/40 text-emerald-400 border-emerald-800/40',
+  Applied:               'bg-blue-900/40 text-blue-400 border-blue-800/40',
+  Shortlisted:           'bg-green-900/40 text-green-400 border-green-800/40',
+  'Interview Scheduled': 'bg-purple-900/40 text-purple-400 border-purple-800/40',
+  Rejected:              'bg-red-900/40 text-red-400 border-red-800/40',
+  Hired:                 'bg-emerald-900/40 text-emerald-400 border-emerald-800/40',
 };
 
 export default function AdminApplications() {
   const { toasts, toast, removeToast } = useToast();
-  const [apps,       setApps]       = useState([]);
-  const [loading,    setLoading]    = useState(true);
-  const [viewApp,    setViewApp]    = useState(null);
-  const [statusFilter, setStatusFilter] = useState('All');
-  const [typeFilter, setTypeFilter] = useState('all'); // 'all' | 'application' | 'jobseeker'
-  const [search,     setSearch]     = useState('');
-  const [page,       setPage]       = useState(1);
-  const [pagination, setPagination] = useState({ total: 0, pages: 1 });
+  const [apps,        setApps]        = useState([]);
+  const [loading,     setLoading]     = useState(true);
+  const [viewApp,     setViewApp]     = useState(null);
+  const [statusFilter,setStatusFilter]= useState('All');
+  const [typeFilter,  setTypeFilter]  = useState('all');
+  const [search,      setSearch]      = useState('');
+  const [page,        setPage]        = useState(1);
+  const [pagination,  setPagination]  = useState({ total: 0, pages: 1 });
+  const [downloading, setDownloading] = useState(null); // track which app is downloading
   const LIMIT = 15;
 
   const load = useCallback(async () => {
@@ -32,8 +33,8 @@ export default function AdminApplications() {
     try {
       const params = { page, limit: LIMIT };
       if (statusFilter !== 'All') params.status = statusFilter;
-      if (search.trim()) params.search = search.trim();
-      if (typeFilter !== 'all') params.type = typeFilter;
+      if (search.trim())          params.search  = search.trim();
+      if (typeFilter !== 'all')   params.type    = typeFilter;
       const d = await applicationsApi.getAll(params);
       setApps(d.data);
       setPagination(d.pagination);
@@ -49,45 +50,50 @@ export default function AdminApplications() {
       const updated = await applicationsApi.updateStatus(id, status);
       setApps(prev => prev.map(a => a._id === id ? updated.data : a));
       if (viewApp?._id === id) setViewApp(updated.data);
-      toast('Status updated.');
+      toast('Status updated successfully.');
     } catch (err) { toast(err.message, 'error'); }
   };
 
   const remove = async (id) => {
-    if (!confirm('Delete this application?')) return;
+    if (!confirm('Delete this application? This cannot be undone.')) return;
     try {
       await applicationsApi.delete(id);
       toast('Application deleted.');
+      if (viewApp?._id === id) setViewApp(null);
       load();
     } catch (err) { toast(err.message, 'error'); }
   };
 
-  // Download resume — fetch with auth header, create blob URL
+  // ── Download resume using fetch + blob (works with auth) ─────────────────
   const handleDownload = async (app) => {
+    setDownloading(app._id);
     try {
-      toast('Downloading resume…');
-      const token = localStorage.getItem('hrr_admin_token');
+      const token    = localStorage.getItem('hrr_admin_token');
       const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-      const res = await fetch(`${BASE_URL}/applications/${app._id}/resume`, {
+      const res      = await fetch(`${BASE_URL}/applications/${app._id}/resume`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        toast(err.message || 'Resume not available.', 'error');
+        const errData = await res.json().catch(() => ({}));
+        toast(errData.message || 'Resume not available. Candidate may not have uploaded one.', 'error');
         return;
       }
-      const blob = await res.blob();
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement('a');
-      a.href     = url;
-      a.download = app.resumeFile?.originalName || `${app.name}_resume.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+
+      const blob     = await res.blob();
+      const url      = URL.createObjectURL(blob);
+      const link     = document.createElement('a');
+      link.href      = url;
+      link.download  = app.resumeFile?.originalName || `${app.name}_resume.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      toast('Resume downloaded!');
+      toast(`✅ Downloaded: ${app.resumeFile?.originalName || 'resume'}`);
     } catch {
-      toast('Failed to download resume.', 'error');
+      toast('Download failed. Please try again.', 'error');
+    } finally {
+      setDownloading(null);
     }
   };
 
@@ -99,11 +105,11 @@ export default function AdminApplications() {
         {/* Header */}
         <div className="mb-6">
           <h1 className="font-display font-bold text-2xl text-white mb-1">Applications</h1>
-          <p className="text-gray-500 text-sm">{pagination.total} total applications</p>
+          <p className="text-gray-500 text-sm">{pagination.total} total submissions</p>
         </div>
 
         {/* Type Tabs */}
-        <div className="flex gap-2 mb-4">
+        <div className="flex gap-2 mb-4 flex-wrap">
           {[
             { key: 'all',         label: 'All Submissions' },
             { key: 'application', label: '📋 Job Applications' },
@@ -122,7 +128,6 @@ export default function AdminApplications() {
 
         {/* Filters */}
         <div className="flex flex-wrap gap-3 mb-5">
-          {/* Search */}
           <div className="flex items-center gap-2 flex-1 min-w-[220px] bg-gray-900 border border-gray-700 rounded-xl px-4 py-2.5">
             <Search size={16} className="text-gray-500" />
             <input value={search} onChange={e => setSearch(e.target.value)}
@@ -130,7 +135,6 @@ export default function AdminApplications() {
               className="bg-transparent text-sm outline-none flex-1 text-gray-300 placeholder-gray-600" />
             {search && <button onClick={() => setSearch('')} className="text-gray-600 hover:text-gray-400"><X size={14} /></button>}
           </div>
-          {/* Status */}
           <div className="flex gap-2 flex-wrap">
             {STATUSES.map(s => (
               <button key={s} onClick={() => setStatusFilter(s)}
@@ -159,7 +163,7 @@ export default function AdminApplications() {
                 <table className="w-full">
                   <thead className="bg-gray-800 border-b border-gray-700">
                     <tr>
-                      {['Candidate', 'Applied For', 'Contact', 'Experience', 'Date', 'Status', 'Actions'].map(h => (
+                      {['Candidate','Applied For','Contact','Experience','Date','Resume','Status','Actions'].map(h => (
                         <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -167,6 +171,7 @@ export default function AdminApplications() {
                   <tbody className="divide-y divide-gray-800">
                     {apps.map(app => (
                       <tr key={app._id} className="hover:bg-gray-800/50 transition-colors">
+                        {/* Candidate */}
                         <td className="px-4 py-3.5">
                           <div className="flex items-center gap-2.5">
                             <div className="w-7 h-7 bg-gray-700 rounded-full flex items-center justify-center text-white text-xs font-bold uppercase flex-shrink-0">
@@ -178,6 +183,7 @@ export default function AdminApplications() {
                             </div>
                           </div>
                         </td>
+                        {/* Applied For */}
                         <td className="px-4 py-3.5 text-gray-300 text-sm max-w-[160px]">
                           <div className="truncate">{app.jobTitle || 'General'}</div>
                           <div className="mt-0.5">
@@ -187,14 +193,37 @@ export default function AdminApplications() {
                             }
                           </div>
                         </td>
+                        {/* Contact */}
                         <td className="px-4 py-3.5">
                           <div className="text-gray-300 text-sm font-medium">{app.phone}</div>
                           <div className="text-gray-500 text-xs">{app.email}</div>
                         </td>
+                        {/* Experience */}
                         <td className="px-4 py-3.5 text-gray-400 text-sm whitespace-nowrap">{app.experience}</td>
+                        {/* Date */}
                         <td className="px-4 py-3.5 text-gray-500 text-xs whitespace-nowrap">
                           {new Date(app.createdAt).toLocaleDateString('en-IN')}
                         </td>
+                        {/* Resume */}
+                        <td className="px-4 py-3.5">
+                          {app.resumeFile?.originalName ? (
+                            <button
+                              onClick={() => handleDownload(app)}
+                              disabled={downloading === app._id}
+                              title={`Download: ${app.resumeFile.originalName}`}
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-green-900/40 text-green-400 hover:bg-green-900/70 rounded-lg transition-colors text-xs font-medium disabled:opacity-50 whitespace-nowrap"
+                            >
+                              {downloading === app._id
+                                ? <Loader2 size={12} className="animate-spin" />
+                                : <Download size={12} />
+                              }
+                              {downloading === app._id ? 'Downloading…' : 'Download CV'}
+                            </button>
+                          ) : (
+                            <span className="text-gray-600 text-xs">No CV</span>
+                          )}
+                        </td>
+                        {/* Status */}
                         <td className="px-4 py-3.5">
                           <select
                             value={app.status}
@@ -204,18 +233,13 @@ export default function AdminApplications() {
                             {STATUSES.filter(s => s !== 'All').map(s => <option key={s} style={{ background: '#111' }}>{s}</option>)}
                           </select>
                         </td>
+                        {/* Actions */}
                         <td className="px-4 py-3.5">
                           <div className="flex items-center gap-1.5">
-                            <button onClick={() => setViewApp(app)} title="View"
+                            <button onClick={() => setViewApp(app)} title="View Details"
                               className="p-1.5 bg-blue-900/40 text-blue-400 hover:bg-blue-900/60 rounded-lg transition-colors">
                               <Eye size={14} />
                             </button>
-                            {app.resumeFile?.filename && (
-                              <button onClick={() => handleDownload(app)} title="Download Resume"
-                                className="p-1.5 bg-green-900/40 text-green-400 hover:bg-green-900/60 rounded-lg transition-colors">
-                                <Download size={14} />
-                              </button>
-                            )}
                             <button onClick={() => remove(app._id)} title="Delete"
                               className="p-1.5 bg-red-900/40 text-red-400 hover:bg-red-900/60 rounded-lg transition-colors">
                               <Trash2 size={14} />
@@ -231,7 +255,7 @@ export default function AdminApplications() {
               {/* Pagination */}
               {pagination.pages > 1 && (
                 <div className="flex items-center justify-between px-5 py-3 border-t border-gray-800">
-                  <p className="text-gray-500 text-xs">Page {page} of {pagination.pages}</p>
+                  <p className="text-gray-500 text-xs">Page {page} of {pagination.pages} ({pagination.total} total)</p>
                   <div className="flex gap-2">
                     <button onClick={() => setPage(p => p - 1)} disabled={page === 1}
                       className="p-2 bg-gray-800 text-gray-400 rounded-lg disabled:opacity-40 hover:bg-gray-700 transition-colors">
@@ -249,7 +273,7 @@ export default function AdminApplications() {
         </div>
       </div>
 
-      {/* View Application Modal */}
+      {/* ── View Application Modal ──────────────────────────────────────── */}
       <AnimatePresence>
         {viewApp && (
           <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/70 backdrop-blur-sm overflow-y-auto py-8">
@@ -264,10 +288,16 @@ export default function AdminApplications() {
 
               {/* Type badge */}
               <div className="mb-4">
-                <span className={`px-3 py-1 text-xs font-bold rounded-full ${viewApp.type === 'jobseeker' ? 'bg-purple-900/50 text-purple-300 border border-purple-700' : 'bg-blue-900/50 text-blue-300 border border-blue-700'}`}>
+                <span className={`px-3 py-1 text-xs font-bold rounded-full ${
+                  viewApp.type === 'jobseeker'
+                    ? 'bg-purple-900/50 text-purple-300 border border-purple-700'
+                    : 'bg-blue-900/50 text-blue-300 border border-blue-700'
+                }`}>
                   {viewApp.type === 'jobseeker' ? '👤 Job Seeker Profile' : '📋 Job Application'}
                 </span>
               </div>
+
+              {/* Details */}
               <div className="space-y-2 mb-5">
                 {(viewApp.type === 'jobseeker' ? [
                   ['Full Name',     viewApp.name],
@@ -298,7 +328,9 @@ export default function AdminApplications() {
                 ))}
                 {(viewApp.coverLetter || viewApp.message) && (
                   <div className="px-4 py-3 bg-gray-800 rounded-xl">
-                    <span className="text-gray-500 text-xs font-medium block mb-1.5">{viewApp.type === 'jobseeker' ? 'Additional Message' : 'Cover Letter'}</span>
+                    <span className="text-gray-500 text-xs font-medium block mb-1.5">
+                      {viewApp.type === 'jobseeker' ? 'Additional Message' : 'Cover Letter'}
+                    </span>
                     <p className="text-gray-300 text-sm leading-relaxed">{viewApp.coverLetter || viewApp.message}</p>
                   </div>
                 )}
@@ -321,21 +353,28 @@ export default function AdminApplications() {
                 </div>
               </div>
 
-              {/* Resume download */}
-              {viewApp.resumeFile?.filename && (
+              {/* Resume download in modal */}
+              {viewApp.resumeFile?.originalName ? (
                 <div className="space-y-2">
-                  <button onClick={() => handleDownload(viewApp)}
-                    className="w-full flex items-center justify-center gap-2 py-3 bg-green-900/40 text-green-400 hover:bg-green-900/60 font-semibold rounded-xl transition-colors text-sm">
-                    <Download size={16} /> Download Resume ({viewApp.resumeFile.originalName || 'resume'})
+                  <button
+                    onClick={() => handleDownload(viewApp)}
+                    disabled={downloading === viewApp._id}
+                    className="w-full flex items-center justify-center gap-2 py-3.5 bg-green-900/40 text-green-400 hover:bg-green-900/60 font-semibold rounded-xl transition-colors text-sm disabled:opacity-50"
+                  >
+                    {downloading === viewApp._id
+                      ? <><Loader2 size={16} className="animate-spin" /> Downloading…</>
+                      : <><Download size={16} /> Download CV — {viewApp.resumeFile.originalName}</>
+                    }
                   </button>
-                  <p className="text-center text-xs text-gray-600">
-                    File size: {viewApp.resumeFile.size ? `${(viewApp.resumeFile.size / 1024).toFixed(0)} KB` : 'Unknown'}
-                  </p>
+                  {viewApp.resumeFile?.size && (
+                    <p className="text-center text-xs text-gray-600">
+                      File size: {(viewApp.resumeFile.size / 1024).toFixed(0)} KB
+                    </p>
+                  )}
                 </div>
-              )}
-              {!viewApp.resumeFile?.filename && (
-                <div className="w-full flex items-center justify-center gap-2 py-3 bg-gray-800 text-gray-600 font-semibold rounded-xl text-sm">
-                  No resume uploaded
+              ) : (
+                <div className="w-full flex items-center justify-center gap-2 py-3 bg-gray-800 text-gray-600 rounded-xl text-sm">
+                  <FileText size={16} /> No resume uploaded by candidate
                 </div>
               )}
             </motion.div>

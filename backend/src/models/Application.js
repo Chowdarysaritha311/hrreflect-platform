@@ -9,36 +9,42 @@ const applicationSchema = new mongoose.Schema({
   experience:  { type: String, required: true },
   skills:      { type: String },
   coverLetter: { type: String },
-  // Resume file
+
+  // Resume — stored directly in MongoDB (survives server restarts/redeploys)
   resumeFile: {
     originalName: String,
-    filename:     String,
-    path:         String,
     mimetype:     String,
     size:         Number,
+    data:         Buffer,   // ← actual file bytes stored in DB
   },
-  // Job reference (only for job applicants)
+
+  // Job reference
   jobId:    { type: mongoose.Schema.Types.ObjectId, ref: 'Job' },
   jobTitle: { type: String },
   company:  { type: String },
-  // Type: 'application' = applied to a specific job, 'jobseeker' = general profile registration
+
+  // Type
   type: { type: String, enum: ['application', 'jobseeker'], default: 'application' },
-  // Extra jobseeker fields
+
+  // Job seeker extra fields
   currentRole:  { type: String },
   desiredRole:  { type: String },
   noticePeriod: { type: String },
   message:      { type: String },
-  // Application management
+
+  // Status
   status: {
     type: String,
     enum: ['Applied','Shortlisted','Interview Scheduled','Rejected','Hired'],
     default: 'Applied',
   },
   notes: { type: String },
-  // Future AI fields — architecture ready
-  aiScore:          { type: Number },
-  aiSkillsExtracted:[{ type: String }],
-  aiMatchReason:    { type: String },
+
+  // AI-ready fields
+  aiScore:           { type: Number },
+  aiSkillsExtracted: [{ type: String }],
+  aiMatchReason:     { type: String },
+
 }, { timestamps: true });
 
 export default mongoose.model('Application', applicationSchema);

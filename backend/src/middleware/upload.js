@@ -1,21 +1,7 @@
 import multer from 'multer';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import fs from 'fs';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname  = path.dirname(__filename);
-
-const uploadDir = path.join(__dirname, '../../uploads');
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadDir),
-  filename:    (req, file, cb) => {
-    const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
-    cb(null, `resume_${Date.now()}_${safeName}`);
-  },
-});
+// Use memoryStorage — file stored in RAM as Buffer, then saved to MongoDB
+// This prevents files from being lost on server restarts/redeploys
 
 const fileFilter = (req, file, cb) => {
   const allowed = [
@@ -33,7 +19,7 @@ const fileFilter = (req, file, cb) => {
 const MAX_MB = parseInt(process.env.MAX_FILE_SIZE_MB || '5');
 
 export const uploadResume = multer({
-  storage,
+  storage: multer.memoryStorage(), // Store in memory as Buffer
   fileFilter,
   limits: { fileSize: MAX_MB * 1024 * 1024 },
 }).single('resume');
